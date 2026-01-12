@@ -3,10 +3,6 @@
 A full-stack product exploration platform built to scrape and present live book data from **World of Books**.  
 The app allows users to browse from **navigation → collections → products → product details**, with data fetched on demand and cached for performance.
 
-This project was built as a **production-minded assignment**, focusing on clean architecture, real-world scraping challenges, and scalable backend design.
-
----
-
 ## ✨ Features
 
 - 🔎 Navigation → Collections → Products → Product Details
