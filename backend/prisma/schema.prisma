@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model collection {
+  id            Int       @id @default(autoincrement())
+  title         String
+  slug          String
+  sourceUrl     String
+  productCount  Int?
+  lastScrapedAt DateTime?
+
+  navigationId Int
+  navigation   Navigation @relation(fields: [navigationId], references: [id])
+
+  parentId Int?
+  parent   collection?  @relation("collectionTree", fields: [parentId], references: [id])
+  children collection[] @relation("collectionTree")
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  Product   Product[]
+
+  @@unique([slug, navigationId])
+}
+
+model Product {
+  id            Int       @id @default(autoincrement())
+  sourceId      String    @unique
+  title         String
+  author        String?
+  price         Float
+  currency      String
+  imageUrl      String
+  sourceUrl     String    @unique
+  lastScrapedAt DateTime?
+
+  collectionId Int
+  collections   collection @relation(fields: [collectionId], references: [id])
+
+  detail  ProductDetail?
+  reviews Review[]
+}
+
+model ProductDetail {
+  productId    Int    @id
+  description  String
+  specs        Json
+  ratingsAvg   Float?
+  reviewsCount Int?
+
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  author    String?
+  rating    Float?
+  text      String
+  createdAt DateTime @default(now())
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model ScrapeJob {
+  id         Int       @id @default(autoincrement())
+  targetUrl  String
+  targetType String
+  status     String
+  errorLog   String?
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+}
+
+model ViewHistory {
+  id        Int      @id @default(autoincrement())
+  userId    String?
+  sessionId String
+  pathJson  Json
+  createdAt DateTime @default(now())
+}
+
+model Navigation {
+  id            Int      @id @default(autoincrement())
+  title         String
+  slug          String   @unique
+  sourceUrl     String   @unique
+  lastScrapedAt DateTime @default(now())
+
+  collections collection[] 
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
