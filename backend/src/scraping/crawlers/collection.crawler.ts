@@ -14,17 +14,20 @@ export async function scrapeCollections(
     requestQueue,
     maxRequestsPerCrawl: 20,
 
-    launchContext: {
-      launchOptions: {
-        headless: true,
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-gpu",
-        ],
-      },
-    },
+launchContext: {
+  launchOptions: {
+    headless: true,
+    executablePath: 0
+      ? undefined
+      : "/usr/bin/google-chrome",
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--single-process",
+    ],
+  },
+},
 
     async requestHandler({ page, request, log }) {
       log.info(`Visiting ${request.url}`);
