@@ -12,25 +12,33 @@ export class CollectionService {
     });
   }
 
-async scrapeAll() {
-  try {
-    console.log("Starting Dynamic Discovery...");
-    const scraped = await scrapeCollections(
-      "https://www.worldofbooks.com/en-gb"
-    );
+  async scrapeAll() {
+    console.log("Starting Dynamic Discovery (No Hardcoding)...");
 
+    // 🟢 We just point it to the root. The crawler will find the rest.
+    const scraped = await scrapeCollections("https://www.worldofbooks.com/en-gb");
+
+    if (scraped.length === 0) {
+        console.warn("Warning: No collections found. Check internet or crawler selector logic.");
+    }
+
+    // Save whatever we found
     for (const item of scraped) {
       await this.prisma.collection.upsert({
         where: { slug: item.slug },
-        update: item,
-        create: item,
+        update: {
+          title: item.title,
+          sourceUrl: item.sourceUrl,
+          // Update timestamp only if we were scraping details (optional)
+        },
+        create: {
+          title: item.title,
+          slug: item.slug,
+          sourceUrl: item.sourceUrl,
+        },
       });
     }
 
-    console.log("Scraping finished");
-  } catch (e) {
-    console.error("Scraping failed", e);
+    return this.findAll();
   }
-}
-
 }
