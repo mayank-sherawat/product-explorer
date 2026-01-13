@@ -2,12 +2,13 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './common/prisma/prisma.module';
-import { NavigationModule } from './navigation/navigation.module';
-import { collectionModule } from './collection/collection.module';
+// REMOVED: import { NavigationModule } ...
+import { CollectionModule } from './collection/collection.module'; // Ensure capital C
 import { ProductModule } from "./product/product.module";
 
 @Module({
-  imports: [ProductModule,
+  imports: [
+    ProductModule,
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([
       {
@@ -16,8 +17,8 @@ import { ProductModule } from "./product/product.module";
       },
     ]),
     PrismaModule,
-    NavigationModule,
-    collectionModule,
+    // REMOVED: NavigationModule,
+    CollectionModule, 
   ],
 })
 export class AppModule {}

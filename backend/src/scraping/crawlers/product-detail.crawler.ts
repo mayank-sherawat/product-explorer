@@ -1,4 +1,5 @@
-import { PlaywrightCrawler } from "crawlee";
+import { PlaywrightCrawler, RequestQueue } from "crawlee";
+const generateId = () => Math.random().toString(36).substring(2, 15);
 
 export interface ScrapedProductDetail {
   description: string;
@@ -7,110 +8,52 @@ export interface ScrapedProductDetail {
   currency: string;
 }
 
-export async function scrapeProductDetail(
-  productUrl: string,
-): Promise<ScrapedProductDetail> {
+export async function scrapeProductDetail(productUrl: string): Promise<ScrapedProductDetail> {
+  let result: ScrapedProductDetail = { description: "", specs: {}, price: 0, currency: "GBP" };
 
-  let result: ScrapedProductDetail = {
-    description: "",
-    specs: {},
-    price: 0,
-    currency: "GBP",
-  };
+  // 1. Fix Caching: Use unique queue
+  const requestQueue = await RequestQueue.open(generateId());
 
   const crawler = new PlaywrightCrawler({
+    requestQueue,
     maxRequestsPerCrawl: 1,
-    launchContext: {
-      launchOptions: {
-        headless: false,
-      },
-    },
-
+    launchContext: { launchOptions: { headless: false } },
     async requestHandler({ page }) {
-      await page.goto(productUrl, {
-        waitUntil: "networkidle",
-        timeout: 60000,
-      });
+      await page.goto(productUrl, { waitUntil: "domcontentloaded" });
+      await page.waitForTimeout(3000);
+      await page.mouse.wheel(0, 3000); // Trigger lazy load
 
-      await page.waitForTimeout(4000);
-      await page.mouse.wheel(0, 3000); // Scroll to trigger lazy load
-      await page.waitForTimeout(2000);
-
-      /* ================= PRICE ================= */
+      // 2. Fix Price: Scrape it here so we don't lose it
       const priceText = await page.evaluate(() => {
-        const candidates = [
-          '[data-testid="price"]',
-          '.price', 
-          '#price',
-          'span[class*="price"]'
-        ];
-        for (const sel of candidates) {
-          const el = document.querySelector(sel);
-          if (el?.textContent) return el.textContent;
-        }
-        return "";
+        const el = document.querySelector('[data-testid="price"]') || document.querySelector('.price');
+        return el?.textContent || "";
       });
       const price = parseFloat(priceText.replace(/[^0-9.]/g, ""));
 
-      /* ================= DESCRIPTION ================= */
+      // 3. Fix Description
       const description = await page.evaluate(() => {
-        const candidates = [
-            '[data-testid="product-description"]',
-            '.product-description',
-            '#description',
-            'div[itemprop="description"]',
-            // Fallback: look for the "About this product" section
-            '.about-product-content' 
-        ];
-        for (const sel of candidates) {
-            const el = document.querySelector(sel);
-            if (el?.textContent) return el.textContent.trim();
-        }
-        return "";
+        const el = document.querySelector('[data-testid="product-description"]') || document.querySelector('.about-product-content');
+        return el?.textContent?.trim() || "";
       });
 
-      /* ================= SPECS (Combined Strategy) ================= */
+      // 4. Fix Specs: Support both DL and TABLE formats
       const specs = await page.evaluate(() => {
         const data: Record<string, string> = {};
-
-        // Strategy 1: Definition Lists (<dl>)
         document.querySelectorAll("dl").forEach(dl => {
-          const dts = dl.querySelectorAll("dt");
-          const dds = dl.querySelectorAll("dd");
-          dts.forEach((dt, i) => {
-            const key = dt.textContent?.trim();
-            const value = dds[i]?.textContent?.trim();
-            if (key && value) data[key] = value;
-          });
+            const dts = dl.querySelectorAll("dt");
+            const dds = dl.querySelectorAll("dd");
+            dts.forEach((dt, i) => { data[dt.textContent?.trim() || ""] = dds[i]?.textContent?.trim() || ""; });
         });
-
-        // Strategy 2: Tables (<tr>) - Previous strategy fallback
         if (Object.keys(data).length === 0) {
             document.querySelectorAll("table tr").forEach(row => {
-                const cells = row.querySelectorAll("td, th");
-                if (cells.length === 2) {
-                    const key = cells[0].textContent?.trim();
-                    const value = cells[1].textContent?.trim();
-                    if (key && value) data[key] = value;
-                }
+                const cells = row.querySelectorAll("td");
+                if (cells.length === 2) data[cells[0].textContent?.trim() || ""] = cells[1].textContent?.trim() || "";
             });
         }
-
         return data;
       });
 
-      console.log("DETAIL SCRAPED:", {
-        price,
-        descLen: description.length,
-        specsKeys: Object.keys(specs),
-      });
-
-      result = {
-        description,
-        specs,
-        price: isNaN(price) ? 0 : price,
-        currency: "GBP",
-      };
+      result = { description, specs, price: isNaN(price) ? 0 : price, currency: "GBP" };
     },
   });
 

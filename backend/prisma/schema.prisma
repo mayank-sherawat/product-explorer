@@ -7,26 +7,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model collection {
+model collection { // Rename to "Collection" (PascalCase) if you prefer standard naming
   id            Int       @id @default(autoincrement())
   title         String
-  slug          String
+  
+  // 🟢 CHANGE: Make slug unique and remove compound constraint
+  slug          String    @unique 
+  
   sourceUrl     String
   productCount  Int?
   lastScrapedAt DateTime?
 
-  navigationId Int
-  navigation   Navigation @relation(fields: [navigationId], references: [id])
-
+  // 🔴 REMOVED: navigationId and navigation relation
+  
   parentId Int?
-  parent   collection?  @relation("collectionTree", fields: [parentId], references: [id])
+  parent   collection? @relation("collectionTree", fields: [parentId], references: [id])
   children collection[] @relation("collectionTree")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   Product   Product[]
-
-  @@unique([slug, navigationId])
 }
 
 model Product {
@@ -39,7 +39,7 @@ model Product {
   imageUrl      String
   sourceUrl     String    @unique
   lastScrapedAt DateTime?
-
+  
   collectionId Int
   collections   collection @relation(fields: [collectionId], references: [id])
 
@@ -86,15 +86,4 @@ model ViewHistory {
   createdAt DateTime @default(now())
 }
 
-model Navigation {
-  id            Int      @id @default(autoincrement())
-  title         String
-  slug          String   @unique
-  sourceUrl     String   @unique
-  lastScrapedAt DateTime @default(now())
-
-  collections collection[] 
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
+// 🔴 REMOVED: model Navigation { ... }

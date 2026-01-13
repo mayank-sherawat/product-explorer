@@ -4,55 +4,41 @@ import { scrapeCollections } from "../scraping/crawlers/collection.crawler";
 
 @Injectable()
 export class CollectionService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
-  async findByNavigation(navigationId: number) {
-    return this.prisma.collection.findMany({
-      where: { navigationId },
-      orderBy: { title: "asc" },
-    });
-  }
   async findAll() {
     return this.prisma.collection.findMany({
       orderBy: { title: "asc" },
     });
   }
 
+  async scrapeAll() {
+    console.log("Starting Dynamic Discovery (No Hardcoding)...");
 
-  async scrapeByNavigation(navigationId: number) {
-    const navigation = await this.prisma.navigation.findUnique({
-      where: { id: navigationId },
-    });
+    // 🟢 We just point it to the root. The crawler will find the rest.
+    const scraped = await scrapeCollections("https://www.worldofbooks.com/en-gb");
 
-    if (!navigation) {
-      throw new Error("Navigation not found");
+    if (scraped.length === 0) {
+        console.warn("Warning: No collections found. Check internet or crawler selector logic.");
     }
 
-    const scraped = await scrapeCollections(navigation.sourceUrl);
-
+    // Save whatever we found
     for (const item of scraped) {
       await this.prisma.collection.upsert({
-        where: {
-          slug_navigationId: {
-            slug: item.slug,
-            navigationId,
-          },
-        },
+        where: { slug: item.slug },
         update: {
           title: item.title,
           sourceUrl: item.sourceUrl,
-          lastScrapedAt: new Date(),
+          // Update timestamp only if we were scraping details (optional)
         },
         create: {
           title: item.title,
           slug: item.slug,
           sourceUrl: item.sourceUrl,
-          navigationId,
         },
       });
     }
 
-
-    return this.findByNavigation(navigationId);
+    return this.findAll();
   }
 }
