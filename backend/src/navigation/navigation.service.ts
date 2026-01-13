@@ -6,6 +6,7 @@ import { scrapeNavigation } from "../scraping/crawlers/navigation.crawler";
 export class NavigationService {
   constructor(private readonly prisma: PrismaService) {}
 
+  
   async getNavigation() {
    
     const existing = await this.prisma.navigation.findMany();

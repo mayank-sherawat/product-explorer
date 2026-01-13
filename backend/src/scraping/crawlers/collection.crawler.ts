@@ -1,4 +1,7 @@
-import { PlaywrightCrawler } from "crawlee";
+import { PlaywrightCrawler, RequestQueue } from "crawlee";
+
+// Helper to generate a random ID
+const generateId = () => Math.random().toString(36).substring(2, 15);
 
 export interface ScrapedCollection {
   title: string;
@@ -11,8 +14,14 @@ export async function scrapeCollections(
 ): Promise<ScrapedCollection[]> {
   const results: ScrapedCollection[] = [];
 
+  // 🟢 FIX: Create unique queue
+  const requestQueue = await RequestQueue.open(generateId());
+
   const crawler = new PlaywrightCrawler({
+    requestQueue, // 👈 Use unique queue
+    requestHandlerTimeoutSecs: 60,
     maxRequestsPerCrawl: 1,
+
     launchContext: {
       launchOptions: {
         headless: true,

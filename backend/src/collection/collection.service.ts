@@ -4,7 +4,7 @@ import { scrapeCollections } from "../scraping/crawlers/collection.crawler";
 
 @Injectable()
 export class CollectionService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findByNavigation(navigationId: number) {
     return this.prisma.collection.findMany({
@@ -12,6 +12,12 @@ export class CollectionService {
       orderBy: { title: "asc" },
     });
   }
+  async findAll() {
+    return this.prisma.collection.findMany({
+      orderBy: { title: "asc" },
+    });
+  }
+
 
   async scrapeByNavigation(navigationId: number) {
     const navigation = await this.prisma.navigation.findUnique({
@@ -45,6 +51,7 @@ export class CollectionService {
         },
       });
     }
+
 
     return this.findByNavigation(navigationId);
   }

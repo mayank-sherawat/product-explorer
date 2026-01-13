@@ -1,4 +1,7 @@
-import { PlaywrightCrawler } from "crawlee";
+import { PlaywrightCrawler, RequestQueue } from "crawlee";
+
+// Helper to generate a random ID (Replaces uuid)
+const generateId = () => Math.random().toString(36).substring(2, 15);
 
 export interface ScrapedProduct {
   title: string;
@@ -15,91 +18,86 @@ export async function scrapeProductsFromCollection(
 ): Promise<ScrapedProduct[]> {
   const results: ScrapedProduct[] = [];
 
-  for (let pageNum = 1; pageNum <= 5; pageNum++) {
-    const pageUrl =
-      pageNum === 1
-        ? collectionUrl
-        : `${collectionUrl}?shopify_products[page]=${pageNum}`;
+  // 🟢 FIX: Manually create a unique queue to force a fresh scrape
+  const requestQueue = await RequestQueue.open(generateId());
 
-    let pageProducts: ScrapedProduct[] = [];
-
-    const crawler = new PlaywrightCrawler({
-      maxRequestsPerCrawl: 1,
-
-      launchContext: {
-        launchOptions: {
-          headless: false,
-          args: ["--disable-blink-features=AutomationControlled"],
-        },
+  const crawler = new PlaywrightCrawler({
+    requestQueue, // 👈 Pass the unique queue here
+    requestHandlerTimeoutSecs: 60,
+    maxRequestsPerCrawl: 50,
+    
+    launchContext: {
+      launchOptions: {
+        headless: false,
+        args: ["--disable-blink-features=AutomationControlled"],
       },
+    },
 
-      browserPoolOptions: {
-        useFingerprints: true,
-      },
+    async requestHandler({ page }) {
+      await page.setViewportSize({ width: 1280, height: 800 });
 
-      async requestHandler({ page }) {
-        await page.setViewportSize({ width: 1280, height: 800 });
+      // Wait for load
+      await page.waitForLoadState("domcontentloaded");
+      await page.waitForTimeout(2000);
 
-        await page.goto(pageUrl, {
-          waitUntil: "domcontentloaded",
-          timeout: 60000,
-        });
+      // Scrape logic
+      const pageProducts = await page.$$eval(
+        'a[href*="/en-gb/products/"]',
+        (links) => {
+          const map = new Map<string, any>();
 
-        await page.waitForTimeout(4000);
+          for (const el of links) {
+            const a = el as HTMLAnchorElement;
+            const href = a.getAttribute("href");
+            if (!href) continue;
 
-        const linkCount = await page.$$eval(
-          'a[href*="/en-gb/products/"]',
-          (els) => els.length,
-        );
-        console.log(`PAGE ${pageNum} → LINKS FOUND: ${linkCount}`);
+            const title =
+              a.getAttribute("aria-label") ||
+              a.textContent?.trim() ||
+              "";
 
-        pageProducts = await page.$$eval(
-          'a[href*="/en-gb/products/"]',
-          (links) => {
-            const map = new Map<string, any>();
+            if (!title) continue;
 
-            for (const el of links) {
-              const a = el as HTMLAnchorElement;
-              const href = a.getAttribute("href");
-              if (!href) continue;
-
-              const title =
-                a.getAttribute("aria-label") ||
-                a.textContent?.trim() ||
-                "";
-
-              if (!title) continue;
-
-              map.set(href, {
-                title,
-                author: null,
-                price: 0,
-                currency: "GBP",
-                imageUrl: "",
-                sourceUrl: `https://www.worldofbooks.com${href}`,
-                sourceId: href.split("-").pop() || href,
-              });
+            // Attempt to find price
+            let price = 0;
+            const card = a.closest('div, li'); 
+            if (card) {
+               const text = card.textContent || "";
+               const match = text.match(/£\s*(\d+(?:\.\d+)?)/);
+               if (match) {
+                  price = parseFloat(match[1]);
+               }
             }
 
-            return Array.from(map.values());
-          },
-        );
-      },
-    });
+            map.set(href, {
+              title,
+              author: null,
+              price,
+              currency: "GBP",
+              imageUrl: "",
+              sourceUrl: `https://www.worldofbooks.com${href}`,
+              sourceId: href.split("-").pop() || href,
+            });
+          }
+          return Array.from(map.values());
+        },
+      );
+      
+      console.log(`EXTRACTED ${pageProducts.length} PRODUCTS from ${page.url()}`);
+      results.push(...pageProducts);
+    },
+  });
 
-    await crawler.run([{ url: pageUrl }]);
-
-    if (pageProducts.length === 0) {
-      console.log(`PAGE ${pageNum} → NO PRODUCTS, STOPPING`);
-      break;
-    }
-
-    console.log(
-      `PAGE ${pageNum} → EXTRACTED ${pageProducts.length} PRODUCTS`,
+  // Add URLs to our unique queue
+  const urlsToCrawl = [];
+  for (let pageNum = 1; pageNum <= 5; pageNum++) {
+    urlsToCrawl.push(
+      pageNum === 1
+        ? collectionUrl
+        : `${collectionUrl}?shopify_products[page]=${pageNum}`
     );
-
-    results.push(...pageProducts);
   }
+  await crawler.run(urlsToCrawl);
 
   return results;
 }

@@ -21,16 +21,22 @@ export class ProductService {
     );
 
     for (const product of products) {
+      // Logic: Only update price if the scraper found one
+      const updateData: any = {
+        title: product.title,
+        author: product.author,
+        imageUrl: product.imageUrl,
+        sourceUrl: product.sourceUrl,
+        lastScrapedAt: new Date(),
+      };
+
+      if (product.price > 0) {
+        updateData.price = product.price;
+      }
+
       await this.prisma.product.upsert({
         where: { sourceId: product.sourceId },
-        update: {
-          title: product.title,
-          author: product.author,
-          price: product.price,
-          imageUrl: product.imageUrl,
-          sourceUrl: product.sourceUrl,
-          lastScrapedAt: new Date(),
-        },
+        update: updateData,
         create: {
           sourceId: product.sourceId,
           title: product.title,
@@ -59,20 +65,39 @@ export class ProductService {
       throw new Error("Product not found");
     }
 
-    if (product.detail) {
+    // CHECK: Only return cached data if it actually has a description
+    if (product.detail && product.detail.description.length > 5) {
       return product;
     }
+
+    console.log(`Scraping details for ${sourceId}...`);
 
     try {
       const detail = await scrapeProductDetail(product.sourceUrl);
 
-      await this.prisma.productDetail.create({
-        data: {
+      // 🛑 FIX: Only update price if the detail scraper actually found one!
+      if (detail.price > 0) {
+        await this.prisma.product.update({
+          where: { id: product.id },
+          data: {
+            price: detail.price,
+            currency: detail.currency,
+          },
+        });
+      }
+
+      await this.prisma.productDetail.upsert({
+        where: { productId: product.id },
+        update: {
+          description: detail.description ?? "",
+          specs: detail.specs ?? {},
+        },
+        create: {
           productId: product.id,
           description: detail.description ?? "",
           specs: detail.specs ?? {},
-          ratingsAvg: detail.ratingsAvg ?? null,
-          reviewsCount: detail.reviewsCount ?? null,
+          ratingsAvg: null,
+          reviewsCount: null,
         },
       });
 
@@ -82,7 +107,7 @@ export class ProductService {
       });
     } catch (err) {
       console.error("DETAIL SCRAPE FAILED:", err);
-      throw new Error("Failed to scrape product detail");
+      return product;
     }
   }
 }
