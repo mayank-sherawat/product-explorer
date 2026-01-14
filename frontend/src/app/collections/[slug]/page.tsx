@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, usePathname } from "next/navigation";
 import ProductCard from "@/components/ProductCard";
 import SkeletonCard from "@/components/Skeleton";
@@ -28,9 +28,10 @@ interface ApiResponse {
 export default function CollectionPage() {
   const params = useParams();
   const pathname = usePathname();
-  
+
   const rawSlug = params?.slug;
   const slug = Array.isArray(rawSlug) ? rawSlug.join("/") : rawSlug || "";
+  
   const collectionName = slug
     ? slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
     : "Collection";
@@ -42,21 +43,36 @@ export default function CollectionPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
- 
+  // 🔒 FIX 1: Ref to prevent double-fetching in development
+  const activeRequestRef = useRef<string | null>(null);
+
+  // 🔄 FIX 2: Reset page to 1 if the user switches categories (slug changes)
+  useEffect(() => {
+    setPage(1);
+  }, [slug]);
+
+  // History tracking (Kept as is)
   useEffect(() => {
     const sessionId = localStorage.getItem("sessionId") || Math.random().toString(36).substring(7);
     localStorage.setItem("sessionId", sessionId);
 
-    fetch("https://product-explorer-5oji.onrender.com/history", {
+    fetch("http://localhost:3001/history", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId, path: pathname }),
     }).catch(console.error);
   }, [pathname]);
 
-  
+  // Main Data Fetching
   useEffect(() => {
     if (!slug) return;
+
+    // 🔒 Create a unique key for this request (slug + page)
+    const requestKey = `${slug}-${page}`;
+
+    // If we are already fetching this exact page, stop (Prevents double scrap)
+    if (activeRequestRef.current === requestKey) return;
+    activeRequestRef.current = requestKey;
 
     const controller = new AbortController();
     const signal = controller.signal;
@@ -66,9 +82,8 @@ export default function CollectionPage() {
         setLoading(true);
         setError("");
 
-        
         const res = await fetch(
-          `https://product-explorer-5oji.onrender.com/products/collection/${slug}?page=${page}&limit=20`,
+          `http://localhost:3001/products/collection/${slug}?page=${page}&limit=20`,
           { signal }
         );
 
@@ -77,21 +92,38 @@ export default function CollectionPage() {
         const json: ApiResponse = await res.json();
 
         if (!signal.aborted) {
-          setProducts(json.data);
-          setTotalPages(json.meta.totalPages);
+          // 🛡️ FIX 3: Safety Check - Ensure data is actually an array before setting
+          if (json.data && Array.isArray(json.data)) {
+            setProducts(json.data);
+            setTotalPages(json.meta.totalPages);
+          } else {
+            console.error("Invalid data format:", json);
+            setProducts([]); // Prevent crash
+            if (!json.data) setError("No products found.");
+          }
         }
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') return;
+        
         console.error(err);
-        if (!signal.aborted) setError("Could not load products. Please try again.");
+        
+        if (!signal.aborted) {
+            setError("Could not load products. Please try again.");
+            // Unlock ref on error so user can retry
+            activeRequestRef.current = null; 
+        }
       } finally {
         if (!signal.aborted) setLoading(false);
       }
     };
 
     fetchProducts();
-    return () => controller.abort();
-  }, [slug, page]); // Re-run when page changes
+
+    return () => {
+      controller.abort();
+      // We do NOT clear activeRequestRef here to prevent rapid double-mounts
+    };
+  }, [slug, page]);
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -125,12 +157,17 @@ export default function CollectionPage() {
               ))}
             </div>
 
+            {/* Show message if empty */}
+            {products.length === 0 && (
+                 <div className="text-center py-20 text-gray-400">No products found.</div>
+            )}
+
             {totalPages > 1 && (
               <div className="mt-12 flex justify-center gap-4">
                 <button
                   disabled={page <= 1}
                   onClick={() => setPage(p => p - 1)}
-                  className="px-4 py-2 border rounded bg-white disabled:opacity-50"
+                  className="px-4 py-2 border rounded bg-white disabled:opacity-50 hover:bg-gray-50"
                 >
                   Previous
                 </button>
@@ -140,7 +177,7 @@ export default function CollectionPage() {
                 <button
                   disabled={page >= totalPages}
                   onClick={() => setPage(p => p + 1)}
-                  className="px-4 py-2 border rounded bg-white disabled:opacity-50"
+                  className="px-4 py-2 border rounded bg-white disabled:opacity-50 hover:bg-gray-50"
                 >
                   Next
                 </button>

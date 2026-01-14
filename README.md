@@ -90,8 +90,6 @@ cd backend
 npm install
 
 Create a .env file in backend/:
-DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/product_explorer"
-
 Run Prisma migrations:
 npx prisma migrate dev
 npx prisma generate
@@ -100,7 +98,7 @@ Start backend:
 npm run start:dev
 
 Backend runs at:
-https://product-explorer-5oji.onrender.com
+http://localhost:3001
 
 
 3️⃣ Frontend Setup
@@ -108,8 +106,7 @@ cd frontend
 npm install
 npm run dev
 
-Frontend runs at:
-http://localhost:3000
+
 
 
 🔗 API Endpoints
