@@ -23,7 +23,7 @@ export async function scrapeCollections(
     maxRequestsPerCrawl: 20, // Limit to prevent infinite crawling (adjust as needed)
     launchContext: {
       launchOptions: {
-        headless: false, // Set false if you want to watch it work
+        headless: true, // Set false if you want to watch it work
       },
     },
     async requestHandler({ page, request, log }) {
