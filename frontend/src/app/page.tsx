@@ -19,7 +19,7 @@ export default function Home() {
   // Fetch Collections (Read Only)
   const loadCollections = async () => {
     try {
-      const res = await fetch("https://product-explorer-5oji.onrender.com/collections");
+      const res = await fetch("https://product-explorer-5oji.onrender.com");
       const data = await res.json();
       setCollections(data);
     } catch (e) {

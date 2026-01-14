@@ -7,7 +7,6 @@ import { scrapeProductDetail } from "../scraping/crawlers/product-detail.crawler
 export class ProductService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // 🟢 READ-ONLY: Get Products from DB
   async getProductsByCollection(slug: string, page: number = 1, limit: number = 20) {
     const collection = await this.prisma.collection.findFirst({
       where: { slug },
@@ -40,7 +39,7 @@ export class ProductService {
     };
   }
 
-  // 🟢 READ-ONLY: Get Detail from DB
+
   async getProductBySourceId(sourceId: string) {
     const product = await this.prisma.product.findUnique({
       where: { sourceId },
@@ -60,7 +59,7 @@ export class ProductService {
     return { ...product, relatedProducts };
   }
 
-  // 🔴 WRITE: Scrape Products for a Collection
+  
   async scrapeProductsForCollection(collectionId: number, url: string) {
     console.log(`[ProductService] Starting scrape for Collection ID: ${collectionId} | URL: ${url}`);
     
@@ -68,7 +67,7 @@ export class ProductService {
       const products = await scrapeProductsFromCollection(url);
       
       if (products.length > 0) {
-        // Update Timestamp
+       
         await this.prisma.collection.update({
              where: { id: collectionId },
              data: { lastScrapedAt: new Date() }
@@ -76,7 +75,7 @@ export class ProductService {
 
         let savedCount = 0;
         for (const product of products) {
-          // Validate product has ID
+         
           if (!product.sourceId || product.sourceId.length < 2) continue;
 
           const updateData: any = {
@@ -110,7 +109,7 @@ export class ProductService {
         console.warn(`[ProductService] ⚠️ Scraper found 0 products for URL: ${url}. Check selectors or block status.`);
       }
     } catch (error) {
-      console.error(`[ProductService] ❌ Failed to scrape collection ${collectionId}:`, error);
+      console.error(`[ProductService]  Failed to scrape collection ${collectionId}:`, error);
     }
   }
 }

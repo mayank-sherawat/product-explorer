@@ -27,7 +27,7 @@ export async function scrapeProductsFromCollection(
     
     launchContext: {
       launchOptions: {
-        headless: false, // Keep false for WoB
+        headless: true, // Keep false for WoB
         args: ["--disable-blink-features=AutomationControlled"],
       },
     },

@@ -5,7 +5,7 @@ import { PrismaModule } from "../common/prisma/prisma.module";
 import { ProductModule } from "../product/product.module"; // Import this
 
 @Module({
-  imports: [PrismaModule, ProductModule], // Add ProductModule
+  imports: [PrismaModule, ProductModule], 
   controllers: [CollectionController],
   providers: [CollectionService],
 })

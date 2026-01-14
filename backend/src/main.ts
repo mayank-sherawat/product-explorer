@@ -6,11 +6,10 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Enable CORS
+
   app.enableCors();
 
-  // 🟢 RECOMMENDED: Graceful Shutdown
-  // This ensures Prisma disconnects correctly when you stop the server (Ctrl+C).
+  
   app.enableShutdownHooks();
 
   app.useGlobalPipes(

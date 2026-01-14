@@ -42,7 +42,7 @@ export default function CollectionPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // 1. Log History on Mount
+ 
   useEffect(() => {
     const sessionId = localStorage.getItem("sessionId") || Math.random().toString(36).substring(7);
     localStorage.setItem("sessionId", sessionId);
@@ -54,7 +54,7 @@ export default function CollectionPage() {
     }).catch(console.error);
   }, [pathname]);
 
-  // 2. Fetch Products with Pagination
+  
   useEffect(() => {
     if (!slug) return;
 
@@ -66,7 +66,7 @@ export default function CollectionPage() {
         setLoading(true);
         setError("");
 
-        // Call API with page param
+        
         const res = await fetch(
           `https://product-explorer-5oji.onrender.com/products/collection/${slug}?page=${page}&limit=20`,
           { signal }
@@ -125,7 +125,6 @@ export default function CollectionPage() {
               ))}
             </div>
 
-            {/* Pagination Controls */}
             {totalPages > 1 && (
               <div className="mt-12 flex justify-center gap-4">
                 <button

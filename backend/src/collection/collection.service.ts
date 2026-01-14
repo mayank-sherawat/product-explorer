@@ -17,14 +17,13 @@ export class CollectionService {
     });
   }
 
-  // This is the "Big Button" logic
   async scrapeFullSite() {
     console.log("Starting Full Site Update...");
 
-    // 1. Scrape Collections
+   
     const scrapedCollections = await scrapeCollections("https://www.worldofbooks.com/en-gb");
 
-    // 2. Save Collections
+  
     for (const item of scrapedCollections) {
       await this.prisma.collection.upsert({
         where: { slug: item.slug },
@@ -33,15 +32,13 @@ export class CollectionService {
       });
     }
 
-    // 3. Re-fetch all collections from DB to get IDs
+    
     const allCollections = await this.prisma.collection.findMany();
 
-    // 4. Trigger Product Scraping for each collection
-    // Note: Doing this sequentially to avoid being banned.
+    
     for (const collection of allCollections) {
         await this.productService.scrapeProductsForCollection(collection.id, collection.sourceUrl);
         
-        // Small pause between collections
         await new Promise(r => setTimeout(r, 2000));
     }
 

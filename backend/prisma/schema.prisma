@@ -11,14 +11,12 @@ model collection { // Rename to "Collection" (PascalCase) if you prefer standard
   id            Int       @id @default(autoincrement())
   title         String
   
-  // 🟢 CHANGE: Make slug unique and remove compound constraint
   slug          String    @unique 
   
   sourceUrl     String
   productCount  Int?
   lastScrapedAt DateTime?
 
-  // 🔴 REMOVED: navigationId and navigation relation
   
   parentId Int?
   parent   collection? @relation("collectionTree", fields: [parentId], references: [id])
@@ -85,5 +83,3 @@ model ViewHistory {
   pathJson  Json
   createdAt DateTime @default(now())
 }
-
-// 🔴 REMOVED: model Navigation { ... }

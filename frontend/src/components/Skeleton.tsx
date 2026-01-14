@@ -1,10 +1,8 @@
 export default function SkeletonCard() {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
-      {/* Image Placeholder */}
       <div className="aspect-2/3 bg-gray-200" />
       
-      {/* Content Placeholder */}
       <div className="p-5">
         <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
         <div className="h-3 bg-gray-200 rounded w-1/2 mb-4" />

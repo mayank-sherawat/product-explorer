@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './common/prisma/prisma.module';
-// REMOVED: import { NavigationModule } ...
 import { CollectionModule } from './collection/collection.module'; // Ensure capital C
 import { ProductModule } from "./product/product.module";
 
@@ -17,7 +16,6 @@ import { ProductModule } from "./product/product.module";
       },
     ]),
     PrismaModule,
-    // REMOVED: NavigationModule,
     CollectionModule, 
   ],
 })

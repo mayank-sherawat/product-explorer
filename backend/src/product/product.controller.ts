@@ -5,7 +5,7 @@ import { ProductService } from "./product.service";
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
   
-  // Now purely gets data from DB
+ 
   @Get("collection/:slug")
   getProducts(
     @Param("slug") slug: string,
@@ -15,7 +15,7 @@ export class ProductController {
     return this.productService.getProductsByCollection(slug, Number(page), Number(limit));
   }
 
-  // Now purely gets data from DB
+  
   @Get(":sourceId")
   getDetail(@Param("sourceId") sourceId: string) {
     return this.productService.getProductBySourceId(sourceId);

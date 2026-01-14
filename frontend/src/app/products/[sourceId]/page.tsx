@@ -19,7 +19,7 @@ export default async function ProductDetailPage({ params }: Props) {
             {/* Top Section: Image & Info */}
             <div className="flex flex-col md:flex-row gap-8">
                 {product.imageUrl && (
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                          <Image
                             src={product.imageUrl}
                             alt={product.title}
@@ -31,7 +31,7 @@ export default async function ProductDetailPage({ params }: Props) {
                     </div>
                 )}
 
-                <div className="flex-grow">
+                <div className="grow">
                     <h1 className="text-3xl font-bold mb-2 text-gray-900">{product.title}</h1>
 
                     {product.author && (
@@ -69,15 +69,14 @@ export default async function ProductDetailPage({ params }: Props) {
                     )}
                 </div>
             </div>
-
-            {/* Related Products Section */}
+         
             {product.relatedProducts && product.relatedProducts.length > 0 && (
                 <div className="border-t pt-8">
                     <h2 className="text-2xl font-bold mb-6">You might also like</h2>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                         {product.relatedProducts.map((rel) => (
                              <Link key={rel.sourceId} href={`/products/${rel.sourceId}`} className="group block">
-                                <div className="aspect-[2/3] relative mb-3 overflow-hidden rounded-md bg-gray-100">
+                                <div className="aspect-2/3 relative mb-3 overflow-hidden rounded-md bg-gray-100">
                                     {rel.imageUrl ? (
                                         <Image src={rel.imageUrl} alt={rel.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300"/>
                                     ) : (
@@ -92,7 +91,6 @@ export default async function ProductDetailPage({ params }: Props) {
                 </div>
             )}
 
-            {/* Reviews Section */}
             {product.reviews && product.reviews.length > 0 && (
                 <div className="border-t pt-8">
                     <h2 className="text-2xl font-bold mb-6">Customer Reviews ({product.reviews.length})</h2>

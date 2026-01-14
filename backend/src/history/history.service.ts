@@ -6,7 +6,7 @@ export class HistoryService {
   constructor(private prisma: PrismaService) {}
 
   async logView(sessionId: string, path: string) {
-    // Basic deduplication: don't log if same path viewed < 1 min ago by same session
+
     const oneMinAgo = new Date(Date.now() - 60000);
     const existing = await this.prisma.viewHistory.findFirst({
         where: {
@@ -16,7 +16,7 @@ export class HistoryService {
     });
 
     if (existing) {
-        // check path inside json
+
         const paths = existing.pathJson as any;
         if (paths.path === path) return; 
     }
