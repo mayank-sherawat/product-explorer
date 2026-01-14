@@ -100,7 +100,7 @@ Start backend:
 npm run start:dev
 
 Backend runs at:
-http://localhost:3001
+https://product-explorer-5oji.onrender.com
 
 
 3️⃣ Frontend Setup

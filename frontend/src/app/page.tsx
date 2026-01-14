@@ -19,7 +19,7 @@ export default function Home() {
   // Fetch Collections (Read Only)
   const loadCollections = async () => {
     try {
-      const res = await fetch("http://localhost:3001/collections");
+      const res = await fetch("https://product-explorer-5oji.onrender.com/collections");
       const data = await res.json();
       setCollections(data);
     } catch (e) {
@@ -37,7 +37,7 @@ export default function Home() {
   const handleUpdate = async () => {
     setUpdating(true);
     try {
-      await fetch("http://localhost:3001/collections/scrape", { method: "POST" });
+      await fetch("https://product-explorer-5oji.onrender.com/collections/scrape", { method: "POST" });
       await loadCollections(); // Refresh list after update
       alert("Database updated successfully!");
     } catch { 

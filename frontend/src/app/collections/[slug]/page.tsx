@@ -47,7 +47,7 @@ export default function CollectionPage() {
     const sessionId = localStorage.getItem("sessionId") || Math.random().toString(36).substring(7);
     localStorage.setItem("sessionId", sessionId);
 
-    fetch("http://localhost:3001/history", {
+    fetch("https://product-explorer-5oji.onrender.com/history", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId, path: pathname }),
@@ -68,7 +68,7 @@ export default function CollectionPage() {
 
         // Call API with page param
         const res = await fetch(
-          `http://localhost:3001/products/collection/${slug}?page=${page}&limit=20`,
+          `https://product-explorer-5oji.onrender.com/products/collection/${slug}?page=${page}&limit=20`,
           { signal }
         );
 
