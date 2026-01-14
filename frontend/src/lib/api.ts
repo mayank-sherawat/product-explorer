@@ -1,4 +1,4 @@
-const API = 'http://localhost:3001'
+const API = 'https://product-explorer-5oji.onrender.com'
 
 if (!API) {
   throw new Error("NEXT_PUBLIC_API_URL is not defined");

@@ -20,7 +20,7 @@ export default function Home() {
   // Fetch Collections (Read Only)
   const loadCollections = async () => {
     try {
-      const res = await fetch("http://localhost:3001/collections"); // Make sure path is /collections if that's your route
+      const res = await fetch("https://product-explorer-5oji.onrender.com/collections"); // Make sure path is /collections if that's your route
       const data = await res.json();
       
       console.log("API Data:", data); // Debug log
@@ -51,7 +51,7 @@ export default function Home() {
   const handleUpdate = async () => {
     setUpdating(true);
     try {
-      await fetch("http://localhost:3001/collections/scrape", { method: "POST" });
+      await fetch("https://product-explorer-5oji.onrender.com/collections/scrape", { method: "POST" });
       await loadCollections(); // Refresh list after update
       alert("Database updated successfully!");
     } catch { 
