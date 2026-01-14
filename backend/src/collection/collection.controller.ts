@@ -12,6 +12,7 @@ export class CollectionController {
 
   @Post("scrape")
   async scrape() {
-    return this.service.scrapeAll();
+    // 🟢 FIXED: Updated method name to match CollectionService
+    return this.service.scrapeFullSite();
   }
 }

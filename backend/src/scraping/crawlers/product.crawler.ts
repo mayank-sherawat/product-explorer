@@ -18,77 +18,112 @@ export async function scrapeProductsFromCollection(
   const results: ScrapedProduct[] = [];
   const requestQueue = await RequestQueue.open(generateId());
 
+  console.log(`[ProductCrawler] Starting scrape for: ${collectionUrl}`);
+
   const crawler = new PlaywrightCrawler({
     requestQueue,
-    requestHandlerTimeoutSecs: 60, // Give it time to load
+    requestHandlerTimeoutSecs: 60,
     maxRequestsPerCrawl: 5,        
     
     launchContext: {
       launchOptions: {
-        // 🟢 CRITICAL FIX: Must be FALSE. WoB hides products from headless bots.
-        headless: false, 
+        headless: false, // Keep false for WoB
         args: ["--disable-blink-features=AutomationControlled"],
       },
     },
 
-    async requestHandler({ page }) {
-      console.log(`Visiting: ${page.url()}`);
+    async requestHandler({ page, log }) {
+      log.info(`[ProductCrawler] Navigating to ${page.url()}`);
       
-      // 1. Navigate and wait for network to be (mostly) idle
-      await page.goto(page.url(), { waitUntil: "domcontentloaded", timeout: 30000 });
-
-      // 🟢 2. SMART WAIT: Wait until product links are actually visible
       try {
-        console.log("Waiting for products to render...");
-        await page.waitForSelector('a[href*="/products/"]', { timeout: 10000 });
-      } catch (e) {
-        console.warn("⚠️ Timeout waiting for selectors. The page might be empty or a captcha.");
-      }
+        await page.goto(page.url(), { waitUntil: "domcontentloaded", timeout: 45000 });
+        await page.waitForTimeout(3000); // Initial load wait
+        
+        // Scroll down to trigger lazy loading
+        await page.mouse.wheel(0, 3000);
+        await page.waitForTimeout(2000);
 
-      // Small extra pause for images/prices to pop in
-      await page.waitForTimeout(2000);
+        // 🔍 DEBUG: Take a look at what we found
+        const title = await page.title();
+        log.info(`[ProductCrawler] Page Title: ${title}`);
 
-      // 3. Extract Products
-      const pageProducts = await page.$$eval(
-        'a[href*="/products/"]', 
-        (links) => {
-          const map = new Map<string, any>();
-          for (const el of links) {
-            const a = el as HTMLAnchorElement;
-            const href = a.getAttribute("href");
-            const title = a.innerText?.trim() || a.getAttribute("aria-label");
+        // 🟢 ROBUST SELECTOR STRATEGY
+        // We try to find product cards using multiple common patterns
+        const products = await page.evaluate(() => {
+          const items = new Map<string, any>();
+          
+          // Helper to extract clean price
+          const getPrice = (text: string) => {
+             const match = text.match(/£\s*(\d+(?:\.\d+)?)/);
+             return match ? parseFloat(match[1]) : 0;
+          };
+
+          // STRATEGY A: Look for standard Product Cards (Grid items)
+          const cards = Array.from(document.querySelectorAll('div[class*="ProductCard"], li[class*="Item"], div[class*="grid-item"]'));
+          
+          cards.forEach(card => {
+            const link = card.querySelector('a[href*="/products/"], a[href*="/book/"]');
+            if (!link) return;
+
+            const href = link.getAttribute('href') || "";
+            const fullUrl = href.startsWith('http') ? href : `https://www.worldofbooks.com${href}`;
+            const title = (card.querySelector('h3, .title, [class*="Title"]') as HTMLElement)?.innerText || link.getAttribute('aria-label') || "";
+            const author = (card.querySelector('.author, [class*="Author"]') as HTMLElement)?.innerText || null;
+            const priceText = (card.querySelector('.price, [class*="Price"]') as HTMLElement)?.innerText || "";
             
-            if (!href || !title) continue;
+            // Image might be lazy loaded
+            const img = card.querySelector('img');
+            const imageUrl = img?.getAttribute('src') || img?.getAttribute('data-src') || "";
 
-            // Extract Price
-            let price = 0;
-            const card = a.closest('div, li'); // Find parent container
-            if (card) {
-               const text = card.textContent || "";
-               const match = text.match(/£\s*(\d+(?:\.\d+)?)/);
-               if (match) price = parseFloat(match[1]);
+            if (title && fullUrl) {
+                items.set(fullUrl, {
+                    title: title.trim(),
+                    author: author ? author.replace(/^by\s+/i, '').trim() : null,
+                    price: getPrice(priceText),
+                    currency: "GBP",
+                    imageUrl,
+                    sourceUrl: fullUrl,
+                    sourceId: fullUrl.split("/").pop() || generateId() // Fallback ID
+                });
             }
+          });
 
-            map.set(href, {
-              title,
-              author: null,
-              price,
-              currency: "GBP",
-              imageUrl: "",
-              sourceUrl: `https://www.worldofbooks.com${href}`,
-              sourceId: href.split("-").pop() || href,
-            });
+          // STRATEGY B: Fallback - Scan ALL links with /products/ in href
+          if (items.size === 0) {
+             document.querySelectorAll('a[href*="/products/"]').forEach(a => {
+                const href = a.getAttribute('href') || "";
+                const fullUrl = href.startsWith('http') ? href : `https://www.worldofbooks.com${href}`;
+                const title = (a as HTMLElement).innerText;
+                
+                // Try to find price in parent
+                const parentText = a.parentElement?.innerText || "";
+                
+                if (title && title.length > 5) { // Filter out short links like "Buy"
+                    items.set(fullUrl, {
+                        title: title.trim(),
+                        author: null,
+                        price: getPrice(parentText),
+                        currency: "GBP",
+                        imageUrl: "",
+                        sourceUrl: fullUrl,
+                        sourceId: fullUrl.split("/").pop() || ""
+                    });
+                }
+             });
           }
-          return Array.from(map.values());
-        },
-      );
-      
-      console.log(`✅ Scraper found ${pageProducts.length} items on ${page.url()}`);
-      results.push(...pageProducts);
+
+          return Array.from(items.values());
+        });
+
+        console.log(`[ProductCrawler] Found ${products.length} items on page.`);
+        results.push(...products);
+
+      } catch (e) {
+        log.error(`[ProductCrawler] Error on page: ${e}`);
+      }
     },
   });
 
-  // Run on the collection URL
   await crawler.run([collectionUrl]);
 
   return results;

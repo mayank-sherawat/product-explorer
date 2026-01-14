@@ -1,18 +1,23 @@
-import { Controller, Get, Param } from "@nestjs/common";
+import { Controller, Get, Param, Query } from "@nestjs/common";
 import { ProductService } from "./product.service";
 
 @Controller("products")
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
   
-  // 🟢 CHANGE: Use @Get so the frontend can trigger it easily when loading the page
-  @Get("scrape/:slug")
-  scrape(@Param("slug") slug: string) {
-    return this.productService.scrapeCollectionProducts(slug);
+  // Now purely gets data from DB
+  @Get("collection/:slug")
+  getProducts(
+    @Param("slug") slug: string,
+    @Query("page") page: string = "1",
+    @Query("limit") limit: string = "20"
+  ) {
+    return this.productService.getProductsByCollection(slug, Number(page), Number(limit));
   }
 
+  // Now purely gets data from DB
   @Get(":sourceId")
   getDetail(@Param("sourceId") sourceId: string) {
-    return this.productService.getProductDetail(sourceId);
+    return this.productService.getProductBySourceId(sourceId);
   }
 }

@@ -7,28 +7,78 @@ import { scrapeProductDetail } from "../scraping/crawlers/product-detail.crawler
 export class ProductService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async scrapeCollectionProducts(slug: string) {
-    console.log(`[ProductService] Incoming request for slug: "${slug}"`);
-    
+  // 🟢 READ-ONLY: Get Products from DB
+  async getProductsByCollection(slug: string, page: number = 1, limit: number = 20) {
     const collection = await this.prisma.collection.findFirst({
       where: { slug },
     });
 
     if (!collection) {
-      console.error(`[ProductService] Collection NOT FOUND for slug: ${slug}`);
       throw new NotFoundException(`Collection not found: ${slug}`);
     }
 
-    // 🟢 STRATEGY: Scrape First (Fresh Data), Fallback to DB on error
-    try {
-      console.log(`[ProductService] Starting scraper for: ${collection.title}`);
-      
-      const products = await scrapeProductsFromCollection(collection.sourceUrl);
+    const skip = (page - 1) * limit;
+    
+    const [data, total] = await Promise.all([
+      this.prisma.product.findMany({
+        where: { collectionId: collection.id },
+        orderBy: { id: 'asc' },
+        take: limit,
+        skip: skip,
+      }),
+      this.prisma.product.count({ where: { collectionId: collection.id } })
+    ]);
 
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      }
+    };
+  }
+
+  // 🟢 READ-ONLY: Get Detail from DB
+  async getProductBySourceId(sourceId: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { sourceId },
+      include: { detail: true, reviews: true },
+    });
+
+    if (!product) throw new NotFoundException("Product not found");
+
+    const relatedProducts = await this.prisma.product.findMany({
+        where: { 
+            collectionId: product.collectionId,
+            id: { not: product.id }
+        },
+        take: 4,
+    });
+
+    return { ...product, relatedProducts };
+  }
+
+  // 🔴 WRITE: Scrape Products for a Collection
+  async scrapeProductsForCollection(collectionId: number, url: string) {
+    console.log(`[ProductService] Starting scrape for Collection ID: ${collectionId} | URL: ${url}`);
+    
+    try {
+      const products = await scrapeProductsFromCollection(url);
+      
       if (products.length > 0) {
-        console.log(`[ProductService] Scraper found ${products.length} products. Updating DB...`);
-        
+        // Update Timestamp
+        await this.prisma.collection.update({
+             where: { id: collectionId },
+             data: { lastScrapedAt: new Date() }
+        });
+
+        let savedCount = 0;
         for (const product of products) {
+          // Validate product has ID
+          if (!product.sourceId || product.sourceId.length < 2) continue;
+
           const updateData: any = {
             title: product.title,
             author: product.author,
@@ -37,9 +87,7 @@ export class ProductService {
             lastScrapedAt: new Date(),
           };
 
-          if (product.price > 0) {
-            updateData.price = product.price;
-          }
+          if (product.price > 0) updateData.price = product.price;
 
           await this.prisma.product.upsert({
             where: { sourceId: product.sourceId },
@@ -52,65 +100,17 @@ export class ProductService {
               currency: product.currency,
               imageUrl: product.imageUrl,
               sourceUrl: product.sourceUrl,
-              collectionId: collection.id,
+              collectionId: collectionId,
             },
           });
+          savedCount++;
         }
+        console.log(`[ProductService] ✅ Successfully saved ${savedCount} products for Collection ${collectionId}`);
       } else {
-        console.warn(`[ProductService] Scraper returned 0 products. Using cached data.`);
+        console.warn(`[ProductService] ⚠️ Scraper found 0 products for URL: ${url}. Check selectors or block status.`);
       }
     } catch (error) {
-      console.error("[ProductService] SCRAPE FAILED (Using Cache):", error);
-    }
-
-    // 🟢 Return the data (Fresh or Cache)
-    const finalProducts = await this.prisma.product.findMany({
-      where: { collectionId: collection.id },
-      orderBy: { id: 'asc' },
-    });
-
-    console.log(`[ProductService] Returning ${finalProducts.length} products.`);
-    return finalProducts;
-  }
-
-  // Keep existing getProductDetail logic...
-  async getProductDetail(sourceId: string) {
-    const product = await this.prisma.product.findUnique({
-      where: { sourceId },
-      include: { detail: true },
-    });
-
-    if (!product) throw new NotFoundException("Product not found");
-
-    if (product.detail && product.detail.description.length > 5) {
-      return product;
-    }
-
-    try {
-      const detail = await scrapeProductDetail(product.sourceUrl);
-      if (detail.price > 0) {
-        await this.prisma.product.update({
-          where: { id: product.id },
-          data: { price: detail.price },
-        });
-      }
-      await this.prisma.productDetail.upsert({
-        where: { productId: product.id },
-        update: { description: detail.description, specs: detail.specs },
-        create: {
-          productId: product.id,
-          description: detail.description,
-          specs: detail.specs,
-          ratingsAvg: null,
-          reviewsCount: null,
-        },
-      });
-      return this.prisma.product.findUnique({
-        where: { id: product.id },
-        include: { detail: true },
-      });
-    } catch (err) {
-      return product;
+      console.error(`[ProductService] ❌ Failed to scrape collection ${collectionId}:`, error);
     }
   }
 }

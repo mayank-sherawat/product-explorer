@@ -2,33 +2,36 @@ export interface Collection {
   id: number;
   title: string;
   slug: string;
+  productCount?: number | null;
 }
 
-export interface Product {
+export interface Review {
   id: number;
-  title: string;
   author: string | null;
-  price: number;
-  currency: string;
-  imageUrl: string;
-  sourceId: string;
+  rating: number | null;
+  text: string;
+  createdAt: string;
 }
 
 export interface ProductDetail {
   description: string;
   specs: Record<string, string>;
+  ratingsAvg?: number | null;
+  reviewsCount?: number | null;
 }
 
-export interface ProductWithDetail {
-  id: number;
+export interface Product {
+  sourceId: string;
   title: string;
-  author: string | null;
+  author?: string | null;
   price: number;
   currency: string;
-  imageUrl: string;
-  sourceId: string;
-  detail?: {
-    description: string;
-    specs: Record<string, string>;
-  };
+  imageUrl?: string;
+  sourceUrl?: string;
+}
+
+export interface ProductWithDetail extends Product {
+  detail?: ProductDetail | null;
+  reviews?: Review[];
+  relatedProducts?: Product[];
 }
